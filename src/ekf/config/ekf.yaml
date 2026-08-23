@@ -1,0 +1,51 @@
+ekf:
+  ros__parameters:
+    # Differential-drive geometry. Used when encoder_input_type is joint_states.
+    wheel_base: 0.2
+    radius: 0.0346
+
+    # First-order velocity tracking model.
+    alpha_v: 6.0
+    alpha_w: 10.0
+
+    # Prediction timing.
+    nominal_dt: 0.02
+    max_dt: 0.1
+    prediction_frequency_hz: 50.0
+
+    # Innovation gates.
+    imu_mahalanobis_threshold: 9.0
+    enc_mahalanobis_threshold: 9.21
+
+    # State order: [x, y, yaw, linear_velocity, angular_velocity, gyro_bias].
+    initial_state_covariance_diagonal:
+      [0.0001, 0.0001, 0.01, 0.01, 0.1, 0.01]
+    process_noise_covariance_diagonal:
+      [0.0, 0.0, 0.0, 0.0025, 0.0225, 0.000025]
+
+    # Encoder measurement order: [linear_velocity, angular_velocity].
+    encoder_measurement_covariance_diagonal: [0.0004, 0.0025]
+
+    # Used when the IMU message does not provide a positive yaw-rate variance.
+    imu_measurement_variance: 0.0009
+    use_imu_message_covariance: true
+
+    # Select twist or joint_states. The default preserves the current interface.
+    encoder_input_type: "twist"
+
+    # Relative names allow the containing robot project to apply namespaces.
+    cmd_vel_topic: "cmd_vel"
+    imu_topic: "imu"
+    encoder_twist_topic: "enc/twist_meas"
+    joint_states_topic: "joint_states"
+    odometry_topic: "odom"
+
+    odom_frame_id: "odom"
+    base_frame_id: "base_link"
+    publish_tf: true
+
+    # Required only in joint_states mode. JointState velocity values are rad/s.
+    left_wheel_joint: ""
+    right_wheel_joint: ""
+    left_wheel_velocity_multiplier: 1.0
+    right_wheel_velocity_multiplier: 1.0

@@ -1,0 +1,10 @@
+services:
+  sensor_fusion:
+    image: robot-modules/sensor-fusion:humble
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    environment:
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
