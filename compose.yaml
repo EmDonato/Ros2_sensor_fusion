@@ -1,6 +1,7 @@
 services:
-  sensor_fusion:
-    image: robot-modules/sensor-fusion:humble
+  open-pi-sensor-fusion:
+    image: open-pi-sensor-fusion-img
+    container_name: open-pi-sensor-fusion
     build:
       context: .
       dockerfile: Dockerfile
