@@ -34,7 +34,7 @@ ekf:
     encoder_input_type: "twist"
 
     # Relative names allow the containing robot project to apply namespaces.
-    cmd_vel_topic: "cmd_vel"
+    cmd_vel_topic: "cmd_vel/accepted"
     imu_topic: "imu"
     encoder_twist_topic: "enc/twist_meas"
     joint_states_topic: "joint_states"
