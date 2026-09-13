@@ -83,7 +83,7 @@ public:
         ref_sub_ =
             this->create_subscription<geometry_msgs::msg::Twist>(
                 cmd_vel_topic_,
-                rclcpp::QoS(10),
+                rclcpp::SensorDataQoS(),
                 std::bind(
                     &Ekf::reference_reader,
                     this,
