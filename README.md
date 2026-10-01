@@ -56,6 +56,16 @@ measurement covariance.
 Parameters are loaded and validated at startup. Restart the container after a
 configuration change.
 
+Prediction intervals are integrated in steps no larger than the smaller of
+`nominal_dt` and `max_dt`. The velocity dynamics use the exact exponential
+discretization of the configured first-order model, so their response does not
+depend on how sensor callbacks divide the same time interval.
+
+Measurements older than the current filter time by no more than
+`out_of_sequence_tolerance` are accepted as near-simultaneous updates. This
+absorbs small scheduling and transport reorderings without propagating the
+filter backwards; measurements outside the tolerance are still rejected.
+
 ### Encoder input modes
 
 `encoder_input_type: "twist"` is the default. The node consumes a

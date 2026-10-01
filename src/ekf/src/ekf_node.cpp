@@ -36,7 +36,8 @@ public:
         const auto process_noise_diagonal =
             this->declare_parameter<std::vector<double>>(
                 "process_noise_covariance_diagonal",
-                {0.0, 0.0, 0.0, 0.0025, 0.0225, 0.000025});
+                {0.000001, 0.000001, 0.00001,
+                 0.0036, 0.0324, 0.000036});
 
         const auto encoder_covariance_diagonal =
             this->declare_parameter<std::vector<double>>(
@@ -133,9 +134,10 @@ public:
 
         RCLCPP_INFO(
             this->get_logger(),
-            "EKF started: encoder_input='%s', publish=%.1f Hz, strict OOS rejection enabled",
+            "EKF started: encoder_input='%s', publish=%.1f Hz, OOS tolerance=%.3f ms",
             encoder_input_type_.c_str(),
-            publish_frequency_hz_);
+            publish_frequency_hz_,
+            out_of_sequence_tolerance_ * 1000.0);
     }
 
 private:
@@ -152,13 +154,19 @@ private:
     double radius_ = 0.0346;
     double wheel_base_ = 0.2;
 
-    double alpha_v_ = 6.0;
-    double alpha_w_ = 10.0;
+    double alpha_v_ = 5.0;
+    double alpha_w_ = 8.0;
 
-    // Q_ is defined for nominal_dt_. Longer propagation intervals are
-    // subdivided into chunks no larger than max_dt_.
+    // Q_ is defined for nominal_dt_. Propagation intervals are subdivided so
+    // that numerical integration never uses a step larger than nominal_dt_
+    // or max_dt_.
     double nominal_dt_ = 0.02;
-    double max_dt_ = 0.1;
+    double max_dt_ = 0.02;
+
+    // Slightly reordered measurements within this tolerance are treated as
+    // simultaneous with the current filter state. Older measurements are
+    // rejected because this filter does not keep a rollback history.
+    double out_of_sequence_tolerance_ = 0.005;
 
     double imu_gate_ = 9.0;
     double enc_gate_ = 9.21;
@@ -224,10 +232,12 @@ private:
     {
         wheel_base_ = this->declare_parameter<double>("wheel_base", 0.2);
         radius_ = this->declare_parameter<double>("radius", 0.0346);
-        alpha_v_ = this->declare_parameter<double>("alpha_v", 6.0);
-        alpha_w_ = this->declare_parameter<double>("alpha_w", 10.0);
+        alpha_v_ = this->declare_parameter<double>("alpha_v", 5.0);
+        alpha_w_ = this->declare_parameter<double>("alpha_w", 8.0);
         nominal_dt_ = this->declare_parameter<double>("nominal_dt", 0.02);
-        max_dt_ = this->declare_parameter<double>("max_dt", 0.1);
+        max_dt_ = this->declare_parameter<double>("max_dt", 0.02);
+        out_of_sequence_tolerance_ = this->declare_parameter<double>(
+            "out_of_sequence_tolerance", 0.005);
 
         imu_gate_ = this->declare_parameter<double>(
             "imu_mahalanobis_threshold", 9.0);
@@ -290,6 +300,9 @@ private:
         require_nonnegative("alpha_w", alpha_w_);
         require_positive("nominal_dt", nominal_dt_);
         require_positive("max_dt", max_dt_);
+        require_nonnegative(
+            "out_of_sequence_tolerance",
+            out_of_sequence_tolerance_);
         require_positive("imu_mahalanobis_threshold", imu_gate_);
         require_positive("enc_mahalanobis_threshold", enc_gate_);
         require_positive("publish_frequency_hz", publish_frequency_hz_);
@@ -426,8 +439,10 @@ private:
         w_ref_ = msg->angular.z;
     }
 
-    // Propagates a state/covariance pair by dt seconds.
-    // Long intervals are subdivided rather than discarded.
+    // Propagates a state/covariance pair by dt seconds. nominal_dt_ is also an
+    // integration-step limit: Q_ is calibrated at that interval, and using a
+    // larger Euler step would make both dynamics and covariance depend too
+    // strongly on the sensor callback rate.
     void propagate(Vector6d& x, Matrix6d& P, double dt) const
     {
         if (dt <= 0.0) {
@@ -435,9 +450,10 @@ private:
         }
 
         double remaining = dt;
+        const double integration_step = std::min(max_dt_, nominal_dt_);
 
         while (remaining > 0.0) {
-            const double step_dt = std::min(remaining, max_dt_);
+            const double step_dt = std::min(remaining, integration_step);
             propagate_one_step(x, P, step_dt);
             remaining -= step_dt;
         }
@@ -459,8 +475,11 @@ private:
         x(1) += v * s * dt;
         x(2) += w * dt;
 
-        x(3) += alpha_v_ * (v_ref_ - x(3)) * dt;
-        x(4) += alpha_w_ * (w_ref_ - x(4)) * dt;
+        const double velocity_decay = std::exp(-alpha_v_ * dt);
+        const double yaw_rate_decay = std::exp(-alpha_w_ * dt);
+
+        x(3) = v_ref_ + (v - v_ref_) * velocity_decay;
+        x(4) = w_ref_ + (w - w_ref_) * yaw_rate_decay;
 
         normalize_angle(x(2));
 
@@ -474,8 +493,8 @@ private:
 
         F(2, 4) = dt;
 
-        F(3, 3) = 1.0 - alpha_v_ * dt;
-        F(4, 4) = 1.0 - alpha_w_ * dt;
+        F(3, 3) = velocity_decay;
+        F(4, 4) = yaw_rate_decay;
 
         const double q_scale = dt / nominal_dt_;
 
@@ -483,8 +502,10 @@ private:
         symmetrize_covariance(P);
     }
 
-    // Returns false when a measurement is older than the global EKF time.
-    // Such a measurement is intentionally discarded: no rollback is attempted.
+    // Returns false when a measurement is older than the global EKF time by
+    // more than the configured tolerance. A slightly reordered measurement is
+    // applied at filter_time_ as a near-simultaneous update; no backward
+    // propagation is attempted.
     bool advance_filter_to_measurement(
         const rclcpp::Time& stamp,
         const char* sensor_name)
@@ -496,8 +517,20 @@ private:
         }
 
         if (stamp < filter_time_) {
-            const double delay_ms =
-                (filter_time_ - stamp).seconds() * 1000.0;
+            const double delay = (filter_time_ - stamp).seconds();
+            const double delay_ms = delay * 1000.0;
+
+            if (delay <= out_of_sequence_tolerance_) {
+                RCLCPP_DEBUG_THROTTLE(
+                    verbal_logger_,
+                    *this->get_clock(),
+                    1000,
+                    "%s measurement accepted within OOS tolerance: %.3f ms",
+                    sensor_name,
+                    delay_ms);
+
+                return true;
+            }
 
             RCLCPP_WARN_THROTTLE(
                 verbal_logger_,
