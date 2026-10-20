@@ -1,6 +1,6 @@
 # Sensor fusion
 
-This standalone ROS 2 Humble module provides an EKF for differential-drive
+This standalone ROS 2 Jazzy module provides an EKF for differential-drive
 odometry. It fuses commanded velocity, IMU yaw rate, and encoder velocity and
 publishes odometry plus the optional `odom` to `base_link` transform.
 
@@ -10,7 +10,7 @@ configuration file by default:
 ```bash
 ros2 run ekf ekf_node \
   --ros-args \
-  --params-file /opt/robot_module/share/ekf/config/ekf.yaml
+  --params-file /ws/config/ekf.yaml
 ```
 
 ## Build and run
@@ -18,7 +18,7 @@ ros2 run ekf ekf_node \
 Build the image directly from this module directory:
 
 ```bash
-docker build -t robot-modules/sensor-fusion:humble .
+docker build -t robot-modules/sensor-fusion:jazzy .
 ```
 
 Run it on the host network so DDS discovery works with the other robot modules:
@@ -26,7 +26,7 @@ Run it on the host network so DDS discovery works with the other robot modules:
 ```bash
 docker run --rm --network host \
   -e ROS_DOMAIN_ID=0 \
-  robot-modules/sensor-fusion:humble
+  robot-modules/sensor-fusion:jazzy
 ```
 
 The example Compose file provides the same defaults:
@@ -42,13 +42,13 @@ mount it read-only, and override the image command from that project's script:
 docker run --rm --network host \
   -e ROS_DOMAIN_ID=0 \
   -v /absolute/path/to/robot-ekf.yaml:/config/ekf.yaml:ro \
-  robot-modules/sensor-fusion:humble \
+  robot-modules/sensor-fusion:jazzy \
   ros2 run ekf ekf_node --ros-args --params-file /config/ekf.yaml
 ```
 
 ## Configuration
 
-The packaged defaults are in `src/ekf/config/ekf.yaml`. They preserve the
+The packaged defaults are in `config/ekf.yaml`. They preserve the
 original filter tuning and interfaces while also exposing topics, frame IDs,
 prediction frequency, TF publication, state/process covariance diagonals, and
 measurement covariance.
