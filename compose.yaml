@@ -1,6 +1,7 @@
 services:
   open-pi-sensor-fusion:
-    image: open-pi-sensor-fusion-img
+    image: open-pi-sensor-fusion-img:jazzy
+    platform: ${ROBOT_PLATFORM:-linux/arm64}
     container_name: open-pi-sensor-fusion
     build:
       context: .
