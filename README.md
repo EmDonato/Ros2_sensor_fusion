@@ -106,3 +106,6 @@ ros2 launch sensor_fusion_bringup sensor_fusion.launch.py use_sim_time:=true
 The simulation workspace calls this module's `sensor_fusion.sh` script to start its
 own container. `PIROBOT_EKF_CONFIG` can select a temporary ROS parameter file for
 the container; standalone runs use `config/ekf.yaml`.
+
+The container forwards SIGINT on stop and allows 20 seconds for ROS to exit
+before Docker forces termination. This also applies when used by the playground.
