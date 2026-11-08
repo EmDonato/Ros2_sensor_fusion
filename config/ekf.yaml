@@ -1,5 +1,6 @@
 ekf:
   ros__parameters:
+    use_sim_time: false
     # Differential-drive geometry. Used when encoder_input_type is joint_states.
     wheel_base: 0.2
     radius: 0.0346

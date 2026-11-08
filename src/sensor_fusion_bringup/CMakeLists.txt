@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.8)
+project(sensor_fusion_bringup)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(FILES ../../config/ekf.yaml DESTINATION share/${PROJECT_NAME}/config)
+ament_package()

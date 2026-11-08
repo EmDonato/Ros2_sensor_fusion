@@ -88,3 +88,21 @@ angular      = (right_linear - left_linear) / wheel_base
 Use the wheel velocity multipliers to correct the sign when the two joint axes
 have opposite conventions. The node refuses to start in `joint_states` mode if
 the two wheel joint names are missing or identical.
+
+Clock selection: set `use_sim_time` in this module’s ROS parameter YAML.
+For standalone use, `false` uses the system clock and `true` subscribes to `/clock`.
+When launched by Open-PiRobot_simulation, `config/simulation.yaml` →
+`runtime.use_sim_time` overrides module YAML values; `null` preserves them.
+
+The `src/sensor_fusion_bringup` ROS 2 package installs `sensor_fusion.launch.py`:
+
+```bash
+ros2 launch sensor_fusion_bringup sensor_fusion.launch.py
+ros2 launch sensor_fusion_bringup sensor_fusion.launch.py use_sim_time:=true
+```
+
+`config_file` defaults to the installed `config/ekf.yaml`. An explicit
+`use_sim_time:=true|false` overrides that YAML; the default `config` preserves it.
+The simulation workspace calls this module's `sensor_fusion.sh` script to start its
+own container. `PIROBOT_EKF_CONFIG` can select a temporary ROS parameter file for
+the container; standalone runs use `config/ekf.yaml`.

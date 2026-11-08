@@ -9,3 +9,5 @@ services:
     environment:
       RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+    volumes:
+      - ${PIROBOT_EKF_CONFIG:-./config/ekf.yaml}:/ws/config/ekf.yaml:ro
